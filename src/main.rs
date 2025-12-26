@@ -7,17 +7,17 @@ use std::{collections::HashMap, fs, vec};
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
 pub struct Edge {
-    u: u8,
-    v: u8,
+    u: u32,
+    v: u32,
     w: i8,
 }
 
-impl Edge {
-    // pārbauda vai divas šķautnes savieno tās pašas virsotnes (ignorējot virzienu)
-    pub fn same_vertices(&self, other: &Edge) -> bool {
-        (self.u == other.u && self.v == other.v) || (self.u == other.v && self.v == other.u)
-    }
-}
+// impl Edge {
+//     // pārbauda vai divas šķautnes savieno tās pašas virsotnes (ignorējot virzienu)
+//     pub fn same_vertices(&self, other: &Edge) -> bool {
+//         (self.u == other.u && self.v == other.v) || (self.u == other.v && self.v == other.u)
+//     }
+// }
 
 #[derive(Debug)]
 pub struct Graph {
@@ -30,8 +30,6 @@ impl Graph {
     }
 
     pub fn add_edge(&mut self, edge: Edge) {
-        assert!(!self.edge_list.iter().any(|e| e.same_vertices(&edge)));
-
         self.edge_list.push(edge);
     }
 
@@ -44,7 +42,7 @@ pub struct UnionFind {
     // key - virosotnes id,
     // value - parent virsotnes id
     // root virsotnes parent ir viņa pati
-    parent: HashMap<u8, u8>,
+    parent: HashMap<u32, u32>,
 }
 
 impl UnionFind {
@@ -55,13 +53,13 @@ impl UnionFind {
     }
 
     // ievieto virsotni savā kopā - tās parent ir viņa pati
-    pub fn make_set(&mut self, v: u8) {
+    pub fn make_set(&mut self, v: u32) {
         self.parent.insert(v, v);
     }
 
     // atrod virsotnes v root virsotni
     // principā tiek atrasta kādas virsotņu kopas root virsotne
-    pub fn find(&self, v: u8) -> u8 {
+    pub fn find(&self, v: u32) -> u32 {
         let v_parent = self.parent.get(&v);
 
         match v_parent {
@@ -78,7 +76,7 @@ impl UnionFind {
 
     // apvieno kopu kurā atrodas virsotne a ar kopu kurā atrodas virsotne b,
     // a virsotnes root virsotnes parent tiek iestatīts kā b virsotnes root
-    pub fn union(&mut self, a: u8, b: u8) {
+    pub fn union(&mut self, a: u32, b: u32) {
         let a_root = self.find(a);
         let b_root = self.find(b);
 
@@ -115,16 +113,16 @@ fn parse_input(input: String) -> Graph {
     while !parser.eof() {
         let a = parser
             .next_while(|c| !c.is_whitespace())
-            .parse::<u8>()
+            .parse::<u32>()
             .unwrap();
-        assert!(a >= 1 && i32::from(a) <= n);
+        assert!(a >= 1 && a <= n.try_into().unwrap());
 
         parser.consume_whitespace();
         let b = parser
             .next_while(|c| !c.is_whitespace())
-            .parse::<u8>()
+            .parse::<u32>()
             .unwrap();
-        assert!(b >= 1 && i32::from(b) <= n);
+        assert!(b >= 1 && b <= n.try_into().unwrap());
 
         parser.consume_whitespace();
         let w = parser
@@ -149,7 +147,7 @@ fn parse_input(input: String) -> Graph {
 
 // max_weight_span_tree_kruskal
 // grafam obligāti jau jābūt sakārtotam
-fn mst_kruskal(mut graph: &Graph) -> Graph {
+fn mst_kruskal(graph: &Graph) -> Graph {
     let mut union_find = UnionFind::new();
     let mut a = Graph::new();
 
@@ -180,7 +178,7 @@ pub fn graph_edge_set_diff(graph_a: &Graph, graph_b: &Graph) -> Graph {
     let mut complement = Graph::new();
 
     for edge_a in &graph_a.edge_list {
-        if !graph_b.edge_list.iter().any(|e| e.same_vertices(edge_a)) {
+        if !graph_b.edge_list.contains(edge_a) {
             complement.add_edge(*edge_a);
         }
     }
@@ -210,7 +208,7 @@ fn main() -> Result<(), std::io::Error> {
     // optimizācija - noņem virsotnes iteratīvi iekš mst_kruskal funkcijas no īstā grafa
 
     let file_contents_result = fs::read_to_string(
-        "/home/artursk/magistrs/efficient_algos/winnie_pooh/text_samples/sample_input_2025_1.txt",
+        "/home/artursk/magistrs/efficient_algos/winnie_pooh/text_samples/sample_input_2025_3.txt",
     );
 
     match file_contents_result {
@@ -224,7 +222,7 @@ fn main() -> Result<(), std::io::Error> {
             let honey_edges = graph_edge_set_diff(&parsed_graph, &mst);
 
             println!("Honey edge weight sum: {}", graph_weight_sum(&honey_edges));
-            println!("{:#?}", honey_edges);
+            // println!("{:#?}", honey_edges);
         }
         Err(e) => return Err(e),
     }
