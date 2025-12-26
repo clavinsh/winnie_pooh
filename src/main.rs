@@ -1,27 +1,21 @@
 mod parser;
 
-use self::parser::Parser;
-use std::{cmp, collections::HashMap, vec};
+use clap::Error;
 
-#[derive(Eq, PartialOrd, Clone, Copy, Debug)]
+use self::parser::Parser;
+use std::{collections::HashMap, fs, vec};
+
+#[derive(Eq, PartialEq, Clone, Copy, Debug)]
 pub struct Edge {
     u: u8,
     v: u8,
     w: i8,
 }
 
-// šķautne ir tā pati neatkarībā vai salīdzinām (u,v,w) vai (v,u,w)
-impl PartialEq for Edge {
-    fn eq(&self, other: &Self) -> bool {
-        return (self.u == other.u && self.v == other.v && self.w == other.w)
-            || (self.u == other.v && self.v == other.u && self.w == other.w);
-    }
-}
-
-// edge instances get compared (for sorting purposes) by weight
-impl Ord for Edge {
-    fn cmp(&self, other: &Self) -> cmp::Ordering {
-        return self.w.cmp(&other.w);
+impl Edge {
+    // pārbauda vai divas šķautnes savieno tās pašas virsotnes (ignorējot virzienu)
+    pub fn same_vertices(&self, other: &Edge) -> bool {
+        (self.u == other.u && self.v == other.v) || (self.u == other.v && self.v == other.u)
     }
 }
 
@@ -36,13 +30,13 @@ impl Graph {
     }
 
     pub fn add_edge(&mut self, edge: Edge) {
-        assert!(!self.edge_list.contains(&edge));
+        assert!(!self.edge_list.iter().any(|e| e.same_vertices(&edge)));
 
         self.edge_list.push(edge);
     }
 
-    pub fn sort_edge_list(&mut self) {
-        self.edge_list.sort();
+    pub fn sort_by_weight_desc(&mut self) {
+        self.edge_list.sort_by_key(|e| std::cmp::Reverse(e.w));
     }
 }
 
@@ -182,16 +176,16 @@ fn mst_kruskal(mut graph: &Graph) -> Graph {
 // patur tikai tās šķautnes kuras ir grafā a
 // apstrādā grafa šķautnes kā kopas a, b
 // izpilda kopu set diff darbību a\b
-pub fn graph_edge_set_diff(graph_a: &Graph, graph_b: Graph) -> Graph {
+pub fn graph_edge_set_diff(graph_a: &Graph, graph_b: &Graph) -> Graph {
     let mut complement = Graph::new();
 
     for edge_a in &graph_a.edge_list {
-        if !graph_b.edge_list.contains(&edge_a) {
-            complement.add_edge(edge_a.clone());
+        if !graph_b.edge_list.iter().any(|e| e.same_vertices(edge_a)) {
+            complement.add_edge(*edge_a);
         }
     }
 
-    return complement;
+    complement
 }
 
 pub fn graph_weight_sum(graph: &Graph) -> i32 {
@@ -202,7 +196,7 @@ pub fn graph_weight_sum(graph: &Graph) -> i32 {
     return sum;
 }
 
-fn main() {
+fn main() -> Result<(), std::io::Error> {
     // katrai derīgā cikliskā maršrutā no virsotnes v (līdz ar to atgriežamies virsontē v),
     // ir vismaz viens viena šķautni ar medus podu
 
@@ -215,12 +209,25 @@ fn main() {
     // šķautnes, kuras nav iekšā šajā kokā ir mums meklējāmas
     // optimizācija - noņem virsotnes iteratīvi iekš mst_kruskal funkcijas no īstā grafa
 
-    // let parsed_graph = parse_input("2 1 2 -4".to_string());
-    let mut parsed_graph = parse_input("5 1 2 -1 ".to_string());
-    parsed_graph.edge_list.sort();
+    let file_contents_result = fs::read_to_string(
+        "/home/artursk/magistrs/efficient_algos/winnie_pooh/text_samples/sample_input_2025_1.txt",
+    );
 
-    let honey_edges = graph_edge_set_diff(&parsed_graph, mst_kruskal(&parsed_graph));
+    match file_contents_result {
+        Ok(content) => {
+            // let mut parsed_graph = parse_input("5 1 2 -1 ".to_string());
+            let mut parsed_graph = parse_input(content);
 
-    println!("Honey edge weight sum: {}", graph_weight_sum(&honey_edges));
-    println!("{:#?}", honey_edges);
+            parsed_graph.sort_by_weight_desc();
+
+            let mst = mst_kruskal(&parsed_graph);
+            let honey_edges = graph_edge_set_diff(&parsed_graph, &mst);
+
+            println!("Honey edge weight sum: {}", graph_weight_sum(&honey_edges));
+            println!("{:#?}", honey_edges);
+        }
+        Err(e) => return Err(e),
+    }
+
+    return Ok(());
 }
