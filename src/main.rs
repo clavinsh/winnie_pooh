@@ -154,9 +154,8 @@ fn parse_input(input: String) -> Graph {
 }
 
 // max_weight_span_tree_kruskal
-fn mst_kruskal(mut graph: Graph) -> Graph {
-    graph.edge_list.sort();
-
+// grafam obligāti jau jābūt sakārtotam
+fn mst_kruskal(mut graph: &Graph) -> Graph {
     let mut union_find = UnionFind::new();
     let mut a = Graph::new();
 
@@ -180,6 +179,21 @@ fn mst_kruskal(mut graph: Graph) -> Graph {
     return a;
 }
 
+// patur tikai tās šķautnes kuras ir grafā a
+// apstrādā grafa šķautnes kā kopas a, b
+// izpilda kopu set diff darbību a\b
+pub fn graph_edge_set_diff(graph_a: &Graph, graph_b: Graph) -> Graph {
+    let mut complement = Graph::new();
+
+    for edge_a in &graph_a.edge_list {
+        if !graph_b.edge_list.contains(&edge_a) {
+            complement.add_edge(edge_a.clone());
+        }
+    }
+
+    return complement;
+}
+
 fn main() {
     // katrai derīgā cikliskā maršrutā no virsotnes v (līdz ar to atgriežamies virsontē v),
     // ir vismaz viens viena šķautni ar medus podu
@@ -190,13 +204,13 @@ fn main() {
 
     // potential solution:
     // max weight spanning tree ar Kruskals algorithm
-    // šķautnes, kuras nav iekšā šajā kokāgraph ir mums meklējāmas
+    // šķautnes, kuras nav iekšā šajā kokā ir mums meklējāmas
     // optimizācija - noņem virsotnes iteratīvi iekš mst_kruskal funkcijas no īstā grafa
 
     // let parsed_graph = parse_input("2 1 2 -4".to_string());
-    let parsed_graph = parse_input("5 1 2 -1 ".to_string());
-    println!("{:#?}", parsed_graph);
+    let mut parsed_graph = parse_input("5 1 2 -1 ".to_string());
+    parsed_graph.edge_list.sort();
 
-    let max_span_tree = mst_kruskal(parsed_graph);
-    println!("{:#?}", max_span_tree);
+    let honey_edges = graph_edge_set_diff(&parsed_graph, mst_kruskal(&parsed_graph));
+    println!("{:#?}", honey_edges);
 }
