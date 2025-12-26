@@ -1,6 +1,6 @@
 mod parser;
 
-use clap::Error;
+use rand::seq::SliceRandom;
 
 use self::parser::Parser;
 use std::{collections::HashMap, fs, vec};
@@ -12,12 +12,12 @@ pub struct Edge {
     w: i8,
 }
 
-// impl Edge {
-//     // pārbauda vai divas šķautnes savieno tās pašas virsotnes (ignorējot virzienu)
-//     pub fn same_vertices(&self, other: &Edge) -> bool {
-//         (self.u == other.u && self.v == other.v) || (self.u == other.v && self.v == other.u)
-//     }
-// }
+impl Edge {
+    pub fn is_equal(&self, other: &Self) -> bool {
+        (self.u == other.u && self.v == other.v && self.w == other.w)
+            || self.u == other.v && self.v == other.u && self.w == other.w
+    }
+}
 
 #[derive(Debug)]
 pub struct Graph {
@@ -35,6 +35,12 @@ impl Graph {
 
     pub fn sort_by_weight_desc(&mut self) {
         self.edge_list.sort_by_key(|e| std::cmp::Reverse(e.w));
+    }
+
+    // for testing purpoes
+    pub fn randomize(&mut self) {
+        let mut rng = rand::rng();
+        self.edge_list.shuffle(&mut rng);
     }
 }
 
@@ -132,12 +138,7 @@ fn parse_input(input: String) -> Graph {
 
         assert!(w >= -99 && w <= 99);
 
-        // datu konsekvences dēļ - virsotne ar mazāko id tiks ievietota šķautnē pirmā
-        if a < b {
-            graph.add_edge(Edge { u: a, v: b, w });
-        } else {
-            graph.add_edge(Edge { u: b, v: a, w });
-        }
+        graph.add_edge(Edge { u: a, v: b, w });
 
         parser.consume_whitespace();
     }
@@ -178,7 +179,7 @@ pub fn graph_edge_set_diff(graph_a: &Graph, graph_b: &Graph) -> Graph {
     let mut complement = Graph::new();
 
     for edge_a in &graph_a.edge_list {
-        if !graph_b.edge_list.contains(edge_a) {
+        if !graph_b.edge_list.iter().any(|e| e.is_equal(edge_a)) {
             complement.add_edge(*edge_a);
         }
     }
@@ -203,6 +204,16 @@ fn main() -> Result<(), std::io::Error> {
     // grūtības pakāpe jāoptimizē - no visiem iespējamajiem krājumu izvietojumiem jāizvēlas mazākā iespējāmā svaru summa
 
     // potential solution:
+
+    // min weight spanning tree ir grafa šķautnes, kuras:
+    //      savieno visas virstones
+    //      neveido ciklus
+    //      ir ar vismazākajiem svariem
+    //
+    // ja izdosies atrast pretējo - max weight spanning tree, tad:
+    //      atlikušās šķautnes būs tās, kuras savienojot, izveidos ciklus (medus poda prasība)
+    //      tām būs pēc iespējas mazāka vērtība, jo lielākās vērtības būs iekš spanning tree
+
     // max weight spanning tree ar Kruskals algorithm
     // šķautnes, kuras nav iekšā šajā kokā ir mums meklējāmas
     // optimizācija - noņem virsotnes iteratīvi iekš mst_kruskal funkcijas no īstā grafa
@@ -213,16 +224,15 @@ fn main() -> Result<(), std::io::Error> {
 
     match file_contents_result {
         Ok(content) => {
-            // let mut parsed_graph = parse_input("5 1 2 -1 ".to_string());
             let mut parsed_graph = parse_input(content);
 
+            parsed_graph.randomize();
             parsed_graph.sort_by_weight_desc();
 
             let mst = mst_kruskal(&parsed_graph);
             let honey_edges = graph_edge_set_diff(&parsed_graph, &mst);
 
             println!("Honey edge weight sum: {}", graph_weight_sum(&honey_edges));
-            // println!("{:#?}", honey_edges);
         }
         Err(e) => return Err(e),
     }
