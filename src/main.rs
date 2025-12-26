@@ -194,6 +194,14 @@ pub fn graph_edge_set_diff(graph_a: &Graph, graph_b: Graph) -> Graph {
     return complement;
 }
 
+pub fn graph_weight_sum(graph: &Graph) -> i32 {
+    let mut sum: i32 = 0;
+    for edge in &graph.edge_list {
+        sum += i32::from(edge.w);
+    }
+    return sum;
+}
+
 fn main() {
     // katrai derīgā cikliskā maršrutā no virsotnes v (līdz ar to atgriežamies virsontē v),
     // ir vismaz viens viena šķautni ar medus podu
@@ -212,5 +220,7 @@ fn main() {
     parsed_graph.edge_list.sort();
 
     let honey_edges = graph_edge_set_diff(&parsed_graph, mst_kruskal(&parsed_graph));
+
+    println!("Honey edge weight sum: {}", graph_weight_sum(&honey_edges));
     println!("{:#?}", honey_edges);
 }
