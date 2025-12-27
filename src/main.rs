@@ -37,6 +37,16 @@ impl Graph {
         self.edge_list.sort_by_key(|e| std::cmp::Reverse(e.w));
     }
 
+    pub fn invert_edge_weights(&mut self) {
+        for edge in &mut self.edge_list {
+            edge.w *= -1;
+        }
+    }
+
+    pub fn sort_by_weight_asc(&mut self) {
+        self.edge_list.sort_by_key(|e| e.w);
+    }
+
     // for testing purpoes
     pub fn randomize(&mut self) {
         let mut rng = rand::rng();
@@ -100,7 +110,7 @@ impl UnionFind {
 // w_i iekš {-99, ... 99}
 // a_i b_i w_1 reprezentē šķautni starp virsotnēm a,b, ar svaru w
 // šķautni var reprezetnēt gan kā a_i, b_i, w_i, gan b_i, a_i, w_i
-fn parse_input(input: String) -> Graph {
+fn parse_input(input: String) -> (Graph, u32) {
     let mut parser = Parser::new(input);
 
     let mut graph = Graph::new();
@@ -109,7 +119,7 @@ fn parse_input(input: String) -> Graph {
 
     let n = parser
         .next_while(|c| !c.is_whitespace())
-        .parse::<i32>()
+        .parse::<u32>()
         .unwrap();
 
     assert!(n > 0 && n < 5000);
@@ -143,7 +153,7 @@ fn parse_input(input: String) -> Graph {
         parser.consume_whitespace();
     }
 
-    return graph;
+    return (graph, n);
 }
 
 // max_weight_span_tree_kruskal
@@ -211,6 +221,29 @@ pub fn serialize_honey_edges(graph: &Graph) -> String {
     return serialized;
 }
 
+pub fn to_dot_fmt(graph: &Graph, vertex_count: u32) -> String {
+    let mut dot = String::from(
+        "graph G {\nlayout=neato;\noverlap=scale;\nsplines=true;\nsep=\"+15\";\n\nnode [shape=circle, width=0.2];\nedge [fontsize=8];\n\n",
+    );
+
+    dot.push_str("  node [shape=circle];\n");
+
+    for i in 1..=vertex_count {
+        dot.push_str(&format!("   {};\n", i));
+    }
+
+    for edge in &graph.edge_list {
+        dot.push_str(&format!(
+            "   {} -- {} [xlabel=\"{}\"];\n",
+            edge.u, edge.v, edge.w
+        ));
+    }
+
+    dot.push_str("}\n");
+
+    return dot;
+}
+
 fn main() -> Result<(), std::io::Error> {
     // katrai derīgā cikliskā maršrutā no virsotnes v (līdz ar to atgriežamies virsontē v),
     // ir vismaz viens viena šķautni ar medus podu
@@ -235,21 +268,34 @@ fn main() -> Result<(), std::io::Error> {
     // optimizācija - noņem virsotnes iteratīvi iekš mst_kruskal funkcijas no īstā grafa
 
     let file_contents_result = fs::read_to_string(
-        "/home/artursk/magistrs/efficient_algos/winnie_pooh/text_samples/sample_input_2025_2.txt",
+        "/home/artursk/magistrs/efficient_algos/winnie_pooh/text_samples/sample_input_2025_3.txt",
     );
 
     match file_contents_result {
         Ok(content) => {
-            let mut parsed_graph = parse_input(content);
+            let (mut parsed_graph, n) = parse_input(content);
 
             parsed_graph.randomize();
-            parsed_graph.sort_by_weight_desc();
+
+            parsed_graph.invert_edge_weights();
+            parsed_graph.sort_by_weight_asc();
 
             let mst = mst_kruskal(&parsed_graph);
             let honey_edges = graph_edge_set_diff(&parsed_graph, &mst);
 
             let result = serialize_honey_edges(&honey_edges);
-            println!("{}", result);
+
+            let dot_format = to_dot_fmt(&parsed_graph, n);
+
+            fs::write(
+                "/home/artursk/magistrs/efficient_algos/winnie_pooh/output/result.txt",
+                result,
+            )?;
+
+            fs::write(
+                "/home/artursk/magistrs/efficient_algos/winnie_pooh/output/graph_result.dot",
+                dot_format,
+            )?;
         }
         Err(e) => return Err(e),
     }
