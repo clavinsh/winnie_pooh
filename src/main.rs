@@ -3,7 +3,7 @@ mod parser;
 use rand::seq::SliceRandom;
 
 use self::parser::Parser;
-use std::{collections::HashMap, fs, vec};
+use std::{collections::HashMap, fmt::Write, fs, vec};
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
 pub struct Edge {
@@ -195,6 +195,22 @@ pub fn graph_weight_sum(graph: &Graph) -> i32 {
     return sum;
 }
 
+pub fn serialize_honey_edges(graph: &Graph) -> String {
+    let mut serialized = String::new();
+
+    let k = graph.edge_list.len();
+    let w = graph_weight_sum(graph);
+
+    writeln!(serialized, "{} {}", k, w).expect("Failed to serialize graph to a string");
+
+    for edge in &graph.edge_list {
+        writeln!(serialized, "{} {}", edge.u, edge.v)
+            .expect("Failed to serialize graph to a string");
+    }
+
+    return serialized;
+}
+
 fn main() -> Result<(), std::io::Error> {
     // katrai derīgā cikliskā maršrutā no virsotnes v (līdz ar to atgriežamies virsontē v),
     // ir vismaz viens viena šķautni ar medus podu
@@ -219,7 +235,7 @@ fn main() -> Result<(), std::io::Error> {
     // optimizācija - noņem virsotnes iteratīvi iekš mst_kruskal funkcijas no īstā grafa
 
     let file_contents_result = fs::read_to_string(
-        "/home/artursk/magistrs/efficient_algos/winnie_pooh/text_samples/sample_input_2025_3.txt",
+        "/home/artursk/magistrs/efficient_algos/winnie_pooh/text_samples/sample_input_2025_2.txt",
     );
 
     match file_contents_result {
@@ -232,7 +248,8 @@ fn main() -> Result<(), std::io::Error> {
             let mst = mst_kruskal(&parsed_graph);
             let honey_edges = graph_edge_set_diff(&parsed_graph, &mst);
 
-            println!("Honey edge weight sum: {}", graph_weight_sum(&honey_edges));
+            let result = serialize_honey_edges(&honey_edges);
+            println!("{}", result);
         }
         Err(e) => return Err(e),
     }
