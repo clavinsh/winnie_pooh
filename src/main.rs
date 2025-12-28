@@ -3,7 +3,7 @@ mod parser;
 use rand::seq::SliceRandom;
 
 use self::parser::Parser;
-use std::{collections::HashMap, fmt::Write, fs, vec};
+use std::{collections::HashMap, env, fmt::Write, fs, vec};
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
 pub struct Edge {
@@ -244,6 +244,36 @@ pub fn to_dot_fmt(graph: &Graph, vertex_count: u32) -> String {
     return dot;
 }
 
+fn print_cli_help() {
+    println!(
+        "Usage:
+    winnie_pooh <input_file> <output_file>"
+    );
+}
+
+fn winnie_pooh(input_file_path: &str, output_file_path: &str) -> Result<(), std::io::Error> {
+    let input_result = fs::read_to_string(input_file_path);
+
+    match input_result {
+        Ok(input) => {
+            let (mut parsed_graph, n) = parse_input(input);
+
+            parsed_graph.randomize();
+            parsed_graph.invert_edge_weights();
+            parsed_graph.sort_by_weight_asc();
+
+            let mst = mst_kruskal(&parsed_graph);
+            let honey_edges = graph_edge_set_diff(&parsed_graph, &mst);
+            let output = serialize_honey_edges(&honey_edges);
+
+            fs::write(output_file_path, output)?;
+        }
+        Err(e) => return Err(e),
+    }
+
+    return Ok(());
+}
+
 fn main() -> Result<(), std::io::Error> {
     // katrai derīgā cikliskā maršrutā no virsotnes v (līdz ar to atgriežamies virsontē v),
     // ir vismaz viens viena šķautni ar medus podu
@@ -267,38 +297,18 @@ fn main() -> Result<(), std::io::Error> {
     // šķautnes, kuras nav iekšā šajā kokā ir mums meklējāmas
     // optimizācija - noņem virsotnes iteratīvi iekš mst_kruskal funkcijas no īstā grafa
 
-    let file_contents_result = fs::read_to_string(
-        "/home/artursk/magistrs/efficient_algos/winnie_pooh/text_samples/sample_input_2025_3.txt",
-    );
+    let args: Vec<String> = env::args().collect();
 
-    match file_contents_result {
-        Ok(content) => {
-            let (mut parsed_graph, n) = parse_input(content);
+    match args.len() {
+        3 => {
+            let input_file_path = &args[1];
+            let output_file_path = &args[2];
 
-            parsed_graph.randomize();
-
-            parsed_graph.invert_edge_weights();
-            parsed_graph.sort_by_weight_asc();
-
-            let mst = mst_kruskal(&parsed_graph);
-            let honey_edges = graph_edge_set_diff(&parsed_graph, &mst);
-
-            let result = serialize_honey_edges(&honey_edges);
-
-            let dot_format = to_dot_fmt(&parsed_graph, n);
-
-            fs::write(
-                "/home/artursk/magistrs/efficient_algos/winnie_pooh/output/result.txt",
-                result,
-            )?;
-
-            fs::write(
-                "/home/artursk/magistrs/efficient_algos/winnie_pooh/output/graph_result.dot",
-                dot_format,
-            )?;
+            return winnie_pooh(input_file_path, output_file_path);
         }
-        Err(e) => return Err(e),
+        _ => {
+            print_cli_help();
+            return Ok(());
+        }
     }
-
-    return Ok(());
 }
