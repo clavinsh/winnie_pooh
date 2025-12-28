@@ -3,7 +3,7 @@ mod parser;
 use rand::seq::SliceRandom;
 
 use self::parser::Parser;
-use std::{collections::HashMap, env, fmt::Write, fs, vec};
+use std::{collections::HashMap, env, fmt::Write, fs, io::Error, vec};
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
 pub struct Edge {
@@ -307,8 +307,10 @@ fn main() -> Result<(), std::io::Error> {
             return winnie_pooh(input_file_path, output_file_path);
         }
         _ => {
+            eprintln!("Expected 2 CLI arguments, got {}", args.len() - 1);
             print_cli_help();
-            return Ok(());
+            let err_msg = Error::new(std::io::ErrorKind::InvalidInput, "Invalid CLI arguments");
+            return Err(err_msg);
         }
     }
 }
