@@ -197,6 +197,24 @@ pub fn graph_edge_set_diff(graph_a: &Graph, graph_b: &Graph) -> Graph {
     complement
 }
 
+pub fn get_negative_weight_edges(graph: &Graph) -> Graph {
+    let mut neg_weights = Graph::new();
+
+    for edge in &graph.edge_list {
+        if edge.w < 0 {
+            neg_weights.add_edge(*edge);
+        }
+    }
+
+    return neg_weights;
+}
+
+pub fn combine_graphs(graph_a: &mut Graph, graph_b: &Graph) {
+    for edge_b in &graph_b.edge_list {
+        graph_a.add_edge(*edge_b);
+    }
+}
+
 pub fn graph_weight_sum(graph: &Graph) -> i32 {
     let mut sum: i32 = 0;
     for edge in &graph.edge_list {
@@ -261,8 +279,12 @@ fn winnie_pooh(input_file_path: &str, output_file_path: &str) -> Result<(), std:
             parsed_graph.sort_by_weight_desc();
 
             let mst = mst_kruskal(&parsed_graph);
-            let honey_edges = graph_edge_set_diff(&parsed_graph, &mst);
-            let output = serialize_honey_edges(&honey_edges);
+            let mut set_diff_edges = graph_edge_set_diff(&parsed_graph, &mst);
+            let neg_weight_edges = get_negative_weight_edges(&mst);
+
+            combine_graphs(&mut set_diff_edges, &neg_weight_edges);
+
+            let output = serialize_honey_edges(&set_diff_edges);
 
             fs::write(output_file_path, output)?;
         }
