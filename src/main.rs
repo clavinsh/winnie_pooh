@@ -258,9 +258,7 @@ fn winnie_pooh(input_file_path: &str, output_file_path: &str) -> Result<(), std:
         Ok(input) => {
             let (mut parsed_graph, n) = parse_input(input);
 
-            parsed_graph.randomize();
-            parsed_graph.invert_edge_weights();
-            parsed_graph.sort_by_weight_asc();
+            parsed_graph.sort_by_weight_desc();
 
             let mst = mst_kruskal(&parsed_graph);
             let honey_edges = graph_edge_set_diff(&parsed_graph, &mst);
