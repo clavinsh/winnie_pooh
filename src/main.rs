@@ -1,267 +1,10 @@
 mod parser;
+mod winnie_pooh;
 
-use rand::seq::SliceRandom;
+use std::io::Error;
+use std::{env, fs};
 
-use self::parser::Parser;
-use std::{collections::HashMap, env, fmt::Write, fs, io::Error, vec};
-
-#[derive(Eq, PartialEq, Clone, Copy, Debug)]
-pub struct Edge {
-    u: u32,
-    v: u32,
-    w: i8,
-}
-
-impl Edge {
-    pub fn is_equal(&self, other: &Self) -> bool {
-        (self.u == other.u && self.v == other.v && self.w == other.w)
-            || self.u == other.v && self.v == other.u && self.w == other.w
-    }
-}
-
-#[derive(Debug)]
-pub struct Graph {
-    edge_list: Vec<Edge>,
-}
-
-impl Graph {
-    pub fn new() -> Graph {
-        Graph { edge_list: vec![] }
-    }
-
-    pub fn add_edge(&mut self, edge: Edge) {
-        self.edge_list.push(edge);
-    }
-
-    pub fn sort_by_weight_desc(&mut self) {
-        self.edge_list.sort_by_key(|e| std::cmp::Reverse(e.w));
-    }
-
-    pub fn invert_edge_weights(&mut self) {
-        for edge in &mut self.edge_list {
-            edge.w *= -1;
-        }
-    }
-
-    pub fn sort_by_weight_asc(&mut self) {
-        self.edge_list.sort_by_key(|e| e.w);
-    }
-
-    // for testing purpoes
-    pub fn randomize(&mut self) {
-        let mut rng = rand::rng();
-        self.edge_list.shuffle(&mut rng);
-    }
-}
-
-pub struct UnionFind {
-    // key - virosotnes id,
-    // value - parent virsotnes id
-    // root virsotnes parent ir viņa pati
-    parent: HashMap<u32, u32>,
-}
-
-impl UnionFind {
-    pub fn new() -> UnionFind {
-        UnionFind {
-            parent: HashMap::new(),
-        }
-    }
-
-    // ievieto virsotni savā kopā - tās parent ir viņa pati
-    pub fn make_set(&mut self, v: u32) {
-        self.parent.insert(v, v);
-    }
-
-    // atrod virsotnes v root virsotni
-    // principā tiek atrasta kādas virsotņu kopas root virsotne
-    pub fn find(&self, v: u32) -> u32 {
-        let v_parent = self.parent.get(&v);
-
-        match v_parent {
-            Some(vp) => {
-                if *vp == v {
-                    return v;
-                }
-
-                return self.find(*vp);
-            }
-            None => panic!("Value {v} does not have a parent!"),
-        }
-    }
-
-    // apvieno kopu kurā atrodas virsotne a ar kopu kurā atrodas virsotne b,
-    // a virsotnes root virsotnes parent tiek iestatīts kā b virsotnes root
-    pub fn union(&mut self, a: u32, b: u32) {
-        let a_root = self.find(a);
-        let b_root = self.find(b);
-
-        assert!(a_root != b_root);
-
-        self.parent.insert(a_root, b_root);
-    }
-}
-
-// ievades dati formātā:
-// n a_1 b_1 w_1 a_2 b_2 w_2 ... a_m b_m w_m,
-//
-// n - virsotņu skaits grafā (n < 5000)
-// a_i, b_i iekš {1, ..., n}
-// w_i iekš {-99, ... 99}
-// a_i b_i w_1 reprezentē šķautni starp virsotnēm a,b, ar svaru w
-// šķautni var reprezetnēt gan kā a_i, b_i, w_i, gan b_i, a_i, w_i
-fn parse_input(input: String) -> (Graph, u32) {
-    let mut parser = Parser::new(input);
-
-    let mut graph = Graph::new();
-
-    parser.consume_whitespace();
-
-    let n = parser
-        .next_while(|c| !c.is_whitespace())
-        .parse::<u32>()
-        .unwrap();
-
-    assert!(n > 0 && n < 5000);
-
-    parser.consume_whitespace();
-
-    while !parser.eof() {
-        let a = parser
-            .next_while(|c| !c.is_whitespace())
-            .parse::<u32>()
-            .unwrap();
-        assert!(a >= 1 && a <= n.try_into().unwrap());
-
-        parser.consume_whitespace();
-        let b = parser
-            .next_while(|c| !c.is_whitespace())
-            .parse::<u32>()
-            .unwrap();
-        assert!(b >= 1 && b <= n.try_into().unwrap());
-
-        parser.consume_whitespace();
-        let w = parser
-            .next_while(|c| !c.is_whitespace())
-            .parse::<i8>()
-            .unwrap();
-
-        assert!(w >= -99 && w <= 99);
-
-        graph.add_edge(Edge { u: a, v: b, w });
-
-        parser.consume_whitespace();
-    }
-
-    return (graph, n);
-}
-
-// max_weight_span_tree_kruskal
-// grafam obligāti jau jābūt sakārtotam
-fn mst_kruskal(graph: &Graph) -> Graph {
-    let mut union_find = UnionFind::new();
-    let mut a = Graph::new();
-
-    for edge in &graph.edge_list {
-        if !union_find.parent.contains_key(&edge.u) {
-            union_find.make_set(edge.u);
-        }
-
-        if !union_find.parent.contains_key(&edge.v) {
-            union_find.make_set(edge.v);
-        }
-    }
-
-    for edge in &graph.edge_list {
-        if union_find.find(edge.u) != union_find.find(edge.v) {
-            a.add_edge(edge.clone());
-            union_find.union(edge.u, edge.v);
-        }
-    }
-
-    return a;
-}
-
-// patur tikai tās šķautnes kuras ir grafā a
-// apstrādā grafa šķautnes kā kopas a, b
-// izpilda kopu set diff darbību a\b
-pub fn graph_edge_set_diff(graph_a: &Graph, graph_b: &Graph) -> Graph {
-    let mut complement = Graph::new();
-
-    for edge_a in &graph_a.edge_list {
-        if !graph_b.edge_list.iter().any(|e| e.is_equal(edge_a)) {
-            complement.add_edge(*edge_a);
-        }
-    }
-
-    complement
-}
-
-pub fn get_negative_weight_edges(graph: &Graph) -> Graph {
-    let mut neg_weights = Graph::new();
-
-    for edge in &graph.edge_list {
-        if edge.w < 0 {
-            neg_weights.add_edge(*edge);
-        }
-    }
-
-    return neg_weights;
-}
-
-pub fn combine_graphs(graph_a: &mut Graph, graph_b: &Graph) {
-    for edge_b in &graph_b.edge_list {
-        graph_a.add_edge(*edge_b);
-    }
-}
-
-pub fn graph_weight_sum(graph: &Graph) -> i32 {
-    let mut sum: i32 = 0;
-    for edge in &graph.edge_list {
-        sum += i32::from(edge.w);
-    }
-    return sum;
-}
-
-pub fn serialize_honey_edges(graph: &Graph) -> String {
-    let mut serialized = String::new();
-
-    let k = graph.edge_list.len();
-    let w = graph_weight_sum(graph);
-
-    writeln!(serialized, "{} {}", k, w).expect("Failed to serialize graph to a string");
-
-    for edge in &graph.edge_list {
-        writeln!(serialized, "{} {}", edge.u, edge.v)
-            .expect("Failed to serialize graph to a string");
-    }
-
-    return serialized;
-}
-
-pub fn to_dot_fmt(graph: &Graph, vertex_count: u32) -> String {
-    let mut dot = String::from(
-        "graph G {\nlayout=neato;\noverlap=scale;\nsplines=true;\nsep=\"+15\";\n\nnode [shape=circle, width=0.2];\nedge [fontsize=8];\n\n",
-    );
-
-    dot.push_str("  node [shape=circle];\n");
-
-    for i in 1..=vertex_count {
-        dot.push_str(&format!("   {};\n", i));
-    }
-
-    for edge in &graph.edge_list {
-        dot.push_str(&format!(
-            "   {} -- {} [xlabel=\"{}\"];\n",
-            edge.u, edge.v, edge.w
-        ));
-    }
-
-    dot.push_str("}\n");
-
-    return dot;
-}
-
+use self::winnie_pooh::*;
 fn print_cli_help() {
     println!(
         "Usage:
@@ -274,19 +17,48 @@ fn winnie_pooh(input_file_path: &str, output_file_path: &str) -> Result<(), std:
 
     match input_result {
         Ok(input) => {
-            let (mut parsed_graph, n) = parse_input(input);
+            // ievadfaila struktūra, galvenokārt, apraksta šķautnes
+            // parseris izveido grafa objekta vienu reizi caurstaigājot ievadfailu
+            // O(|E|)
+            let mut parsed_graph = Graph::from_input(input);
 
+            //  šķautnu sakārtošana un mst_kruskal kopā veido sarežģītību O(|E| * log |V|)
             parsed_graph.sort_by_weight_desc();
+            let mst = parsed_graph.mst_kruskal();
 
-            let mst = mst_kruskal(&parsed_graph);
-            let mut set_diff_edges = graph_edge_set_diff(&parsed_graph, &mst);
-            let neg_weight_edges = get_negative_weight_edges(&mst);
+            // pēc MST definīcijas, rezultātā iegūtais šķautņu skaits mst kokā ir |V| - 1,
+            // tāpēc tālāk vietās, kur, lai gan tie apskatītās mst šķautnes,
+            // tad no sākotnējā grafa tās būs skaitā O(|V|)
 
-            combine_graphs(&mut set_diff_edges, &neg_weight_edges);
+            // šķautņu hashset izveide mst grafam ir O(|V|)
+            // šķautņu pārbaude sākotnējam grafam ir O(|E|),
+            // kopā sanāk O(|V| + |E|), bet tā kā grafs ir connected, tad:
+            //      |E| >= |V| - 1
+            //      O(|V| + |E|) = O(|E|)
+            let mut honey_edges = graph_edge_set_diff(&parsed_graph, &mst);
 
-            let output = serialize_honey_edges(&set_diff_edges);
+            // bez atrastajām šķautnēm caur sākotnējā grafa starpību ar max spanning tree,
+            // kuras atrod visas šķautnes, lai katrā ciklā būtu medus pods,
+            // iespējams samazināt kopējo svaru summu izvēlotes vēl klāt šķautnes,
+            // kuru vērtība ir negatīva,
+            //
+            // tiek apskatīta sākotnējā grafa šķautnu spanning tree apakškopa - O(|E|)
+            for edge in &mst.edge_list {
+                if edge.w < 0 {
+                    honey_edges.add_edge(*edge);
+                }
+            }
+
+            // grafa serializēšana sastāv no:
+            //      šķautnu skaita aprēķināšanas - O(|E|)
+            //      šķautnu svaru summas aprēķināšanas - O(|E|)
+            //      katras šķautnes attiecīgo virsotņu pāra izvadīšana failā - O(|E|)
+            // līdz ar to kopsummā - O(|E|)
+            let output = honey_edges.serialize_edges();
 
             fs::write(output_file_path, output)?;
+
+            // līdz ar to viss algoritms kopā - O(|E| * log |V|)
         }
         Err(e) => return Err(e),
     }
@@ -315,7 +87,6 @@ fn main() -> Result<(), std::io::Error> {
 
     // max weight spanning tree ar Kruskals algorithm
     // šķautnes, kuras nav iekšā šajā kokā ir mums meklējāmas
-    // optimizācija - noņem virsotnes iteratīvi iekš mst_kruskal funkcijas no īstā grafa
 
     let args: Vec<String> = env::args().collect();
 
