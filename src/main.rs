@@ -18,7 +18,7 @@ fn winnie_pooh(input_file_path: &str, output_file_path: &str) -> Result<(), std:
     match input_result {
         Ok(input) => {
             // ievadfaila struktūra, galvenokārt, apraksta šķautnes
-            // parseris izveido grafa objekta vienu reizi caurstaigājot ievadfailu
+            // parseris izveido grafa objektu vienu reizi caurstaigājot ievadfailu
             // O(|E|)
             let mut parsed_graph = Graph::from_input(input);
 
@@ -27,8 +27,8 @@ fn winnie_pooh(input_file_path: &str, output_file_path: &str) -> Result<(), std:
             let mst = parsed_graph.mst_kruskal();
 
             // pēc MST definīcijas, rezultātā iegūtais šķautņu skaits mst kokā ir |V| - 1,
-            // tāpēc tālāk vietās, kur, lai gan tie apskatītās mst šķautnes,
-            // tad no sākotnējā grafa tās būs skaitā O(|V|)
+            // tāpēc tālāk vietās, kur tiek apskatītās mst šķautnes,
+            // no sākotnējā grafa tās būs skaitā O(|V|)
 
             // šķautņu hashset izveide mst grafam ir O(|V|)
             // šķautņu pārbaude sākotnējam grafam ir O(|E|),
@@ -42,7 +42,7 @@ fn winnie_pooh(input_file_path: &str, output_file_path: &str) -> Result<(), std:
             // iespējams samazināt kopējo svaru summu izvēlotes vēl klāt šķautnes,
             // kuru vērtība ir negatīva,
             //
-            // tiek apskatīta sākotnējā grafa šķautnu spanning tree apakškopa - O(|E|)
+            // tiek apskatītas MST šķautnes - O(|V|)
             for edge in &mst.edge_list {
                 if edge.w < 0 {
                     honey_edges.add_edge(*edge);
@@ -68,7 +68,7 @@ fn winnie_pooh(input_file_path: &str, output_file_path: &str) -> Result<(), std:
 
 fn main() -> Result<(), std::io::Error> {
     // katrai derīgā cikliskā maršrutā no virsotnes v (līdz ar to atgriežamies virsontē v),
-    // ir vismaz viens viena šķautni ar medus podu
+    // ir vismaz viena šķautne ar medus podu
 
     // derīgs ciklisks maršruts ir tāds, kurā katra šķautne ir dažāda, tās neatkārtojas
 
